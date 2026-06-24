@@ -43,11 +43,35 @@ body {
   display: grid;
   place-items: center;
   position: relative;
+  overflow: hidden;
+}
+
+.mode-pill {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.mode-pill.work {
+  background: #5c6ef8;
+}
+
+.mode-pill.break {
+  background: #f76c6b;
 }
 
 .timer-label {
   font-size: 3rem;
   font-weight: 700;
+  z-index: 1;
 }
 
 .control-panel {

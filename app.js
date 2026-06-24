@@ -1,9 +1,11 @@
 function initPomodoroApp() {
+  createTimerState();
   bindControlEvents();
 }
 
 // 25 minutes in seconds
 const WORK_DURATION = 25 * 60;
+const BREAK_DURATION = 5 * 60;
 
 let remainingSeconds = WORK_DURATION;
 let timerIntervalId = null;
@@ -15,10 +17,19 @@ const state = {
 };
 
 function createTimerState() {
+  state.phase = 'work';
   remainingSeconds = WORK_DURATION;
   timerIntervalId = null;
+
   const label = document.querySelector('.timer-label');
   if (label) label.textContent = formatTime(remainingSeconds);
+
+  const phaseLabel = document.getElementById('phase-label');
+  if (phaseLabel) {
+    phaseLabel.textContent = 'Work';
+    phaseLabel.classList.remove('break');
+    phaseLabel.classList.add('work');
+  }
 }
 
 function loadSessionCount() {
@@ -33,7 +44,7 @@ function startTimer() {
 
   // initialize if needed
   if (!remainingSeconds || remainingSeconds <= 0) {
-    remainingSeconds = WORK_DURATION;
+    remainingSeconds = state.phase === 'break' ? BREAK_DURATION : WORK_DURATION;
   }
 
   // tick every second
@@ -44,15 +55,7 @@ function startTimer() {
     if (label) label.textContent = formatTime(remainingSeconds);
 
     if (remainingSeconds <= 0) {
-      clearInterval(timerIntervalId);
-      timerIntervalId = null;
-      state.isRunning = false;
-      console.log('work complete');
-      // timer finished: reset UI buttons
-      const startBtn = document.getElementById('start-btn');
-      const pauseBtn = document.getElementById('pause-btn');
-      if (startBtn) startBtn.textContent = 'Start';
-      if (pauseBtn) pauseBtn.style.display = 'none';
+      switchPhase();
     }
   }, 1000);
   
@@ -95,12 +98,39 @@ function resetTimer() {
   const label = document.querySelector('.timer-label');
   if (label) label.textContent = formatTime(remainingSeconds);
 
+  const phaseLabel = document.getElementById('phase-label');
+  if (phaseLabel) phaseLabel.textContent = 'Work';
+
   // update buttons: start shows 'Start' and pause hidden
   const startBtn = document.getElementById('start-btn');
   const pauseBtn = document.getElementById('pause-btn');
   if (startBtn) startBtn.textContent = 'Start';
   if (pauseBtn) pauseBtn.style.display = 'none';
+}
 
+function switchPhase() {
+  const phaseLabel = document.getElementById('phase-label');
+
+  if (state.phase === 'work') {
+    state.phase = 'break';
+    remainingSeconds = BREAK_DURATION;
+    if (phaseLabel) {
+      phaseLabel.textContent = 'Break';
+      phaseLabel.classList.remove('work');
+      phaseLabel.classList.add('break');
+    }
+  } else {
+    state.phase = 'work';
+    remainingSeconds = WORK_DURATION;
+    if (phaseLabel) {
+      phaseLabel.textContent = 'Work';
+      phaseLabel.classList.remove('break');
+      phaseLabel.classList.add('work');
+    }
+  }
+
+  const label = document.querySelector('.timer-label');
+  if (label) label.textContent = formatTime(remainingSeconds);
 }
 
 function switchToWorkMode() {
