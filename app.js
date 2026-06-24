@@ -8,8 +8,19 @@ const WORK_DURATION = 10;
 const BREAK_DURATION = 10;
 
 // SVG progress ring constants
-const CIRCLE_RADIUS = 90;
+// Match the SVG viewBox (240x240). Stroke sits centered on the radius so subtract half the stroke (12/2 = 6)
+const CIRCLE_RADIUS = 114;
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
+
+// Web Audio API for sound effects
+let audioContext = null;
+const TONE_WORK_TO_BREAK = 440; // Hz
+const TONE_BREAK_TO_WORK = 660; // Hz
+const TONE_DURATION = 200; // milliseconds
+const TONE_TICK = 800; // Hz
+const TICK_DURATION = 50; // milliseconds
+const TONE_CLICK = 1000; // Hz
+const CLICK_DURATION = 80; // milliseconds
 
 let remainingSeconds = WORK_DURATION;
 let timerIntervalId = null;
@@ -48,6 +59,9 @@ function startTimer() {
   // prevent multiple intervals
   if (timerIntervalId) return;
 
+  // Initialize audio context on first user interaction
+  initAudioContext();
+
   // initialize if needed
   if (!remainingSeconds || remainingSeconds <= 0) {
     remainingSeconds = state.phase === 'break' ? BREAK_DURATION : WORK_DURATION;
@@ -61,6 +75,7 @@ function startTimer() {
     if (label) label.textContent = formatTime(remainingSeconds);
 
     updateProgressRing();
+    playTickSound();
 
     if (remainingSeconds <= 0) {
       switchPhase();
@@ -147,6 +162,7 @@ function switchPhase() {
   if (label) label.textContent = formatTime(remainingSeconds);
 
   updateProgressRing();
+  playTransitionSound();
 }
 
 function switchToWorkMode() {
@@ -167,7 +183,55 @@ function updateProgressVisual(elapsedSeconds, totalSeconds) {
 function updateSessionCounterDisplay(count) {
 }
 
+function initAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // Resume audio context if it's suspended (browsers require user gesture)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+}
+
+function playTone(frequency, durationMs) {
+  if (!audioContext) return;
+
+  const now = audioContext.currentTime;
+  const duration = durationMs / 1000; // Convert to seconds
+
+  // Create oscillator for the tone
+  const osc = audioContext.createOscillator();
+  osc.frequency.value = frequency;
+  osc.type = 'sine';
+
+  // Create gain node for volume control and fade-out
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  // Connect nodes and start playback
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
 function playTransitionSound() {
+  // Play 440 Hz when transitioning TO break (work -> break)
+  // Play 660 Hz when transitioning TO work (break -> work)
+  if (state.phase === 'break') {
+    playTone(TONE_WORK_TO_BREAK, TONE_DURATION);
+  } else {
+    playTone(TONE_BREAK_TO_WORK, TONE_DURATION);
+  }
+}
+
+function playTickSound() {
+  playTone(TONE_TICK, TICK_DURATION);
+}
+
+function playClickSound() {
+  playTone(TONE_CLICK, CLICK_DURATION);
 }
 
 function bindControlEvents() {
@@ -178,6 +242,7 @@ function bindControlEvents() {
   // Start button acts as Start / Reset toggle
   if (startButton) {
     startButton.addEventListener('click', () => {
+      playClickSound();
       // If timer hasn't started (remaining at WORK_DURATION and not running), start it.
       if (!state.isRunning && remainingSeconds === WORK_DURATION) {
         startTimer();
@@ -199,6 +264,7 @@ function bindControlEvents() {
     // hide pause until timer starts
     pauseButton.style.display = 'none';
     pauseButton.addEventListener('click', () => {
+      playClickSound();
       if (state.isRunning) {
         pauseTimer();
       } else {

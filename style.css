@@ -39,12 +39,12 @@ body {
   height: 240px;
   margin: 0 auto 1.5rem;
   border-radius: 50%;
-  border: 12px solid rgba(255, 255, 255, 0.1);
   display: grid;
   place-items: center;
   position: relative;
   overflow: hidden;
 }
+
 
 .progress-svg {
   position: absolute;
@@ -58,12 +58,12 @@ body {
 .progress-ring-bg {
   fill: none;
   stroke: rgba(255, 255, 255, 0.1);
-  stroke-width: 8;
+  stroke-width: 12;
 }
 
 .progress-ring-fg {
   fill: none;
-  stroke-width: 8;
+  stroke-width: 12;
   stroke-linecap: round;
   stroke-linejoin: round;
   transition: stroke-dashoffset 0.3s ease;
@@ -79,7 +79,8 @@ body {
 
 .mode-pill {
   position: absolute;
-  top: 1rem;
+  /* move the pill lower toward the center of the ring */
+  top: 28%;
   left: 50%;
   transform: translateX(-50%);
   padding: 0.4rem 0.85rem;
@@ -102,7 +103,9 @@ body {
 .timer-label {
   font-size: 3rem;
   font-weight: 700;
-  z-index: 1;
+  position: relative;
+  display: inline-block;
+  z-index: 2;
 }
 
 .control-panel {
