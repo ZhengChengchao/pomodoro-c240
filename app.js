@@ -4,8 +4,12 @@ function initPomodoroApp() {
 }
 
 // 25 minutes in seconds
-const WORK_DURATION = 25 * 60;
-const BREAK_DURATION = 5 * 60;
+const WORK_DURATION = 10;
+const BREAK_DURATION = 10;
+
+// SVG progress ring constants
+const CIRCLE_RADIUS = 90;
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
 let remainingSeconds = WORK_DURATION;
 let timerIntervalId = null;
@@ -30,6 +34,8 @@ function createTimerState() {
     phaseLabel.classList.remove('break');
     phaseLabel.classList.add('work');
   }
+
+  updateProgressRing();
 }
 
 function loadSessionCount() {
@@ -53,6 +59,8 @@ function startTimer() {
 
     const label = document.querySelector('.timer-label');
     if (label) label.textContent = formatTime(remainingSeconds);
+
+    updateProgressRing();
 
     if (remainingSeconds <= 0) {
       switchPhase();
@@ -99,13 +107,19 @@ function resetTimer() {
   if (label) label.textContent = formatTime(remainingSeconds);
 
   const phaseLabel = document.getElementById('phase-label');
-  if (phaseLabel) phaseLabel.textContent = 'Work';
+  if (phaseLabel) {
+    phaseLabel.textContent = 'Work';
+    phaseLabel.classList.remove('break');
+    phaseLabel.classList.add('work');
+  }
 
   // update buttons: start shows 'Start' and pause hidden
   const startBtn = document.getElementById('start-btn');
   const pauseBtn = document.getElementById('pause-btn');
   if (startBtn) startBtn.textContent = 'Start';
   if (pauseBtn) pauseBtn.style.display = 'none';
+
+  updateProgressRing();
 }
 
 function switchPhase() {
@@ -131,6 +145,8 @@ function switchPhase() {
 
   const label = document.querySelector('.timer-label');
   if (label) label.textContent = formatTime(remainingSeconds);
+
+  updateProgressRing();
 }
 
 function switchToWorkMode() {
@@ -209,6 +225,28 @@ function formatTime(seconds) {
 }
 
 function setButtonStates(isRunning) {
+}
+
+function updateProgressRing() {
+  const progressFgCircle = document.getElementById('progress-ring-fg');
+  if (!progressFgCircle) return;
+
+  // Get the total duration for the current phase
+  const totalDuration = state.phase === 'work' ? WORK_DURATION : BREAK_DURATION;
+
+  // Calculate the ratio of remaining time to total duration
+  const timeRatio = Math.max(0, remainingSeconds / totalDuration);
+
+  // Calculate stroke-dashoffset to show progress
+  const offset = CIRCLE_CIRCUMFERENCE * (1 - timeRatio);
+
+  // Set the circumference and offset
+  progressFgCircle.style.strokeDasharray = CIRCLE_CIRCUMFERENCE;
+  progressFgCircle.style.strokeDashoffset = offset;
+
+  // Update the circle color based on phase
+  progressFgCircle.classList.remove('work', 'break');
+  progressFgCircle.classList.add(state.phase);
 }
 
 window.addEventListener('DOMContentLoaded', initPomodoroApp);

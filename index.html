@@ -11,6 +11,10 @@
     <section class="timer-card">
       <h1>Pomodoro Timer</h1>
       <div class="progress-ring" aria-label="Pomodoro progress">
+        <svg class="progress-svg" viewBox="0 0 200 200" width="240" height="240">
+          <circle class="progress-ring-bg" cx="100" cy="100" r="90" />
+          <circle id="progress-ring-fg" class="progress-ring-fg" cx="100" cy="100" r="90" />
+        </svg>
         <span id="phase-label" class="mode-pill work">Work</span>
         <span class="timer-label">25:00</span>
       </div>
