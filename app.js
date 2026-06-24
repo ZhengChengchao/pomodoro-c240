@@ -1,5 +1,7 @@
 function initPomodoroApp() {
+  state.sessionCount = loadSessionCount();
   createTimerState();
+  updateSessionCounterDisplay(state.sessionCount);
   bindControlEvents();
 }
 
@@ -11,6 +13,7 @@ const BREAK_DURATION = 10;
 // Match the SVG viewBox (240x240). Stroke sits centered on the radius so subtract half the stroke (12/2 = 6)
 const CIRCLE_RADIUS = 114;
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
+const TIMER_STATE_KEY = 'pomodoroTimerState';
 
 // Web Audio API for sound effects
 let audioContext = null;
@@ -29,11 +32,20 @@ let timerIntervalId = null;
 const state = {
   isRunning: false,
   phase: 'work',
+  sessionCount: 0,
 };
 
 function createTimerState() {
-  state.phase = 'work';
-  remainingSeconds = WORK_DURATION;
+  const savedTimerState = loadTimerState();
+  if (savedTimerState) {
+    state.phase = savedTimerState.phase;
+    remainingSeconds = savedTimerState.remainingSeconds;
+  } else {
+    state.phase = 'work';
+    remainingSeconds = WORK_DURATION;
+  }
+
+  state.isRunning = false;
   timerIntervalId = null;
 
   const label = document.querySelector('.timer-label');
@@ -41,18 +53,59 @@ function createTimerState() {
 
   const phaseLabel = document.getElementById('phase-label');
   if (phaseLabel) {
-    phaseLabel.textContent = 'Work';
-    phaseLabel.classList.remove('break');
-    phaseLabel.classList.add('work');
+    phaseLabel.textContent = state.phase === 'break' ? 'Break' : 'Work';
+    phaseLabel.classList.toggle('break', state.phase === 'break');
+    phaseLabel.classList.toggle('work', state.phase === 'work');
   }
 
   updateProgressRing();
+  setButtonStates();
 }
 
 function loadSessionCount() {
+  const saved = window.localStorage.getItem('pomodoroSessions');
+  const count = parseInt(saved, 10);
+  return Number.isFinite(count) && count >= 0 ? count : 0;
 }
 
 function saveSessionCount(count) {
+  window.localStorage.setItem('pomodoroSessions', String(count));
+}
+
+function loadTimerState() {
+  const saved = window.localStorage.getItem(TIMER_STATE_KEY);
+  if (!saved) return null;
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (
+      parsed &&
+      (parsed.phase === 'work' || parsed.phase === 'break') &&
+      Number.isFinite(parsed.remainingSeconds) &&
+      parsed.remainingSeconds >= 0
+    ) {
+      return {
+        phase: parsed.phase,
+        remainingSeconds: Number(parsed.remainingSeconds),
+      };
+    }
+  } catch (error) {
+    // ignore invalid data
+  }
+
+  return null;
+}
+
+function saveTimerState() {
+  const timerState = {
+    phase: state.phase,
+    remainingSeconds,
+  };
+  window.localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(timerState));
+}
+
+function clearTimerState() {
+  window.localStorage.removeItem(TIMER_STATE_KEY);
 }
 
 function startTimer() {
@@ -79,11 +132,15 @@ function startTimer() {
 
     if (remainingSeconds <= 0) {
       switchPhase();
+    } else {
+      saveTimerState();
     }
   }, 1000);
   
   // mark running
   state.isRunning = true;
+  setButtonStates();
+  saveTimerState();
 }
 
 function pauseTimer() {
@@ -95,6 +152,9 @@ function pauseTimer() {
   // update pause button label to Resume
   const pauseBtn = document.getElementById('pause-btn');
   if (pauseBtn) pauseBtn.textContent = 'Resume';
+
+  setButtonStates();
+  saveTimerState();
 }
 
 function resumeTimer() {
@@ -116,6 +176,8 @@ function resetTimer() {
   remainingSeconds = WORK_DURATION;
   state.phase = 'work';
   state.isRunning = false;
+
+  clearTimerState();
 
   // update DOM label
   const label = document.querySelector('.timer-label');
@@ -141,6 +203,10 @@ function switchPhase() {
   const phaseLabel = document.getElementById('phase-label');
 
   if (state.phase === 'work') {
+    state.sessionCount += 1;
+    saveSessionCount(state.sessionCount);
+    updateSessionCounterDisplay(state.sessionCount);
+
     state.phase = 'break';
     remainingSeconds = BREAK_DURATION;
     if (phaseLabel) {
@@ -162,25 +228,40 @@ function switchPhase() {
   if (label) label.textContent = formatTime(remainingSeconds);
 
   updateProgressRing();
+  saveTimerState();
   playTransitionSound();
 }
 
-function switchToWorkMode() {
-}
-
-function switchToBreakMode() {
-}
-
-function tickTimer() {
-}
-
-function updateTimeDisplay(minutes, seconds) {
-}
-
-function updateProgressVisual(elapsedSeconds, totalSeconds) {
-}
-
 function updateSessionCounterDisplay(count) {
+  const sessionCountEl = document.getElementById('session-count');
+  if (sessionCountEl) {
+    sessionCountEl.textContent = String(count);
+  }
+}
+
+function resetSessionCount() {
+  state.sessionCount = 0;
+  saveSessionCount(0);
+  updateSessionCounterDisplay(state.sessionCount);
+}
+
+function setButtonStates() {
+  const startBtn = document.getElementById('start-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+  if (!startBtn || !pauseBtn) return;
+
+  if (state.isRunning) {
+    startBtn.textContent = 'Reset';
+    pauseBtn.style.display = '';
+    pauseBtn.textContent = 'Pause';
+  } else if (remainingSeconds !== WORK_DURATION || state.phase !== 'work') {
+    startBtn.textContent = 'Reset';
+    pauseBtn.style.display = '';
+    pauseBtn.textContent = 'Resume';
+  } else {
+    startBtn.textContent = 'Start';
+    pauseBtn.style.display = 'none';
+  }
 }
 
 function initAudioContext() {
@@ -237,7 +318,7 @@ function playClickSound() {
 function bindControlEvents() {
   const startButton = document.getElementById('start-btn');
   const pauseButton = document.getElementById('pause-btn');
-  const resetButton = document.getElementById('reset-btn');
+  const resetSessionsButton = document.getElementById('reset-sessions-btn');
 
   // Start button acts as Start / Reset toggle
   if (startButton) {
@@ -261,8 +342,6 @@ function bindControlEvents() {
 
   // Pause button toggles Pause / Resume
   if (pauseButton) {
-    // hide pause until timer starts
-    pauseButton.style.display = 'none';
     pauseButton.addEventListener('click', () => {
       playClickSound();
       if (state.isRunning) {
@@ -274,9 +353,11 @@ function bindControlEvents() {
     });
   }
 
-  // hide or disable the separate reset button if present (we use start-button for reset)
-  if (resetButton) {
-    resetButton.style.display = 'none';
+  if (resetSessionsButton) {
+    resetSessionsButton.addEventListener('click', () => {
+      playClickSound();
+      resetSessionCount();
+    });
   }
 }
 
@@ -288,9 +369,6 @@ function formatTime(seconds) {
   const ss = String(secs).padStart(2, '0');
   return `${mm}:${ss}`;
 
-}
-
-function setButtonStates(isRunning) {
 }
 
 function updateProgressRing() {
