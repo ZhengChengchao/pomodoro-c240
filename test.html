@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pomodoro Timer - Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+    }
+    .test-result {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .pass {
+      color: #155724;
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+    }
+    .fail {
+      color: #721c24;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pomodoro Timer - Browser Test</h1>
+  <div id="test-output"></div>
+  <iframe id="app-frame" style="display: none;"></iframe>
+
+  <script>
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message);
+      }
+    }
+
+    async function runTests() {
+      const outputDiv = document.getElementById('test-output');
+      const iframe = document.getElementById('app-frame');
+
+      // Ensure the app starts fresh by clearing any persisted timer state.
+      localStorage.removeItem('pomodoroTimerState');
+      localStorage.removeItem('pomodoroSessions');
+      iframe.src = 'index.html';
+
+      // Wait for iframe to fully load
+      await new Promise((resolve) => {
+        iframe.onload = resolve;
+      });
+
+      try {
+        // Small delay to ensure app initialization completes
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const appWindow = iframe.contentWindow;
+        const appDoc = iframe.contentDocument;
+
+        // Get the phase label element
+        const phaseLabel = appDoc.getElementById('phase-label');
+        assert(phaseLabel, 'Phase label element not found');
+
+        // Record initial state
+        const initialPhaseText = phaseLabel.textContent;
+        const initialHasWorkClass = phaseLabel.classList.contains('work');
+        
+        assert(initialPhaseText === 'Work', `Expected initial phase "Work", got "${initialPhaseText}"`);
+        assert(initialHasWorkClass, 'Expected initial phase to have "work" class');
+
+        // Fast-forward timer to zero and trigger phase switch
+        appWindow.remainingSeconds = 0;
+        appWindow.switchPhase();
+
+        // Check new state
+        const newPhaseText = phaseLabel.textContent;
+        const newHasBreakClass = phaseLabel.classList.contains('break');
+
+        assert(newPhaseText === 'Break', `Expected phase "Break", got "${newPhaseText}"`);
+        assert(newHasBreakClass, 'Expected phase to have "break" class');
+
+        // All assertions passed
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'test-result pass';
+        resultDiv.innerHTML = '✓ <strong>PASS</strong>: Phase label correctly switches from "Work" to "Break"';
+        outputDiv.appendChild(resultDiv);
+
+      } catch (error) {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'test-result fail';
+        resultDiv.innerHTML = `✗ <strong>FAIL</strong>: ${error.message}`;
+        outputDiv.appendChild(resultDiv);
+      }
+    }
+
+    // Run tests when page loads
+    document.addEventListener('DOMContentLoaded', runTests);
+  </script>
+</body>
+</html>
